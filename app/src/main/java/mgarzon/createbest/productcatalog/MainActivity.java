@@ -14,6 +14,12 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     EditText editTextPrice;
     Button buttonAddProduct;
     ListView listViewProducts;
+    DatabaseReference databaseProducts;
 
     List<Product> products;
 
@@ -35,6 +42,8 @@ public class MainActivity extends AppCompatActivity {
         editTextPrice = (EditText) findViewById(R.id.editTextPrice);
         listViewProducts = (ListView) findViewById(R.id.listViewProducts);
         buttonAddProduct = (Button) findViewById(R.id.addButton);
+
+        databaseProducts = FirebaseDatabase.getInstance().getReference("products");
 
         products = new ArrayList<>();
 
@@ -60,6 +69,33 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        //attatching value event listener.
+        databaseProducts.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                //clearing the previous artist list.
+                products.clear();
+
+                // iterating through all the nodes
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    // getting the product
+                    Product product = postSnapshot.getValue(Product.class);
+                    // adding the product to the list
+                    products.add(product);
+                }
+                // Creating the adapter
+                ProductList productAdapter = new ProductList(MainActivity.this, products);
+                // Attaching the adapter to the listview
+                listViewProducts.setAdapter(productAdapter);
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
 
 
@@ -102,16 +138,43 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateProduct(String id, String name, double price) {
 
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference d_r = FirebaseDatabase.getInstance().getReference("products").child(id);
+
+        Product product = new Product(id, name, price);
+        d_r.setValue(product);
+
+        Toast.makeText(getApplicationContext(), "Product updated with success.", Toast.LENGTH_LONG).show();
     }
 
-    private void deleteProduct(String id) {
+    private boolean deleteProduct(String id) {
 
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference d_r = FirebaseDatabase.getInstance().getReference("products").child(id);
+
+        d_r.removeValue();
+
+        Toast.makeText(getApplicationContext(), "Product deleted successfully", Toast.LENGTH_LONG).show();
+        return true;
     }
 
     private void addProduct() {
+        // Getting the values to add
+        String name = editTextName.getText().toString().trim();
+        double price = Double.parseDouble(String.valueOf(editTextPrice.getText().toString()));
 
-        Toast.makeText(this, "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        // Checking if the values are provided
+        if (!TextUtils.isEmpty(name)) {
+            String id = databaseProducts.push().getKey();
+
+            Product product = new Product(id, name, price);
+
+            databaseProducts.child(id).setValue(product);
+
+            editTextName.setText("");
+            editTextPrice.setText("");
+
+            Toast.makeText(this, "Product added.", Toast.LENGTH_LONG).show();
+        }
+        else
+            Toast.makeText(this, "Please enter a name.", Toast.LENGTH_LONG).show();
     }
 }
